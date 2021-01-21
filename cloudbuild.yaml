@@ -1,0 +1,54 @@
+steps:
+- name: 'ubuntu'
+  id: 'step-perf'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+        echo "Hello, world! ${_PERF} ${_ACC} ${_SEC}" > file
+        cat file
+        no_failure_count=`cat file| grep "performance" | wc -l`
+        echo "is text performance present $no_failure_count"
+        if [ "$no_failure_count" -ge 1 ]; then 
+        exit 0; 
+        else 
+        exit 255; 
+        fi
+- name: 'ubuntu'
+  id: 'check files before'
+  args: ['ls', '-l', '/workspace/']
+  
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'clone-sec'
+  args: [ 'source', 'repos', 'clone', 'skc-dsec-1', '--project=gcp-workshop-trial']
+
+- name: 'ubuntu'
+  id: 'after cloning sec'
+  waitFor: ['clone-sec']
+  args: ['ls', '-l', '/workspace/']
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'clone-acc'
+  args: [ 'source', 'repos', 'clone', 'skc-dacc-1', '--project=gcp-workshop-trial']
+
+- name: 'ubuntu'
+  id: 'after cloning acc'
+  waitFor: ['clone-acc']
+  args: ['ls', '-l', '/workspace/']
+  
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'run-sec'
+  waitFor: ['after cloning sec']
+  args: [ 'builds', 'submit', 'skc-dsec-1', '--config=skc-dsec-1/cloudbuild.yaml', '--substitutions', '_SEC=${_SEC}']
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'run-acc'
+  waitFor: 
+  - 'after cloning acc'
+  args: [ 'builds', 'submit', 'skc-dacc-1', '--config=skc-dacc-1/cloudbuild.yaml', '--substitutions', '_ACC=${_ACC}']
+  
+  
+substitutions:
+    _PERF: "dummyPERF"
+    _ACC: "dummyACC"
+    _SEC: "dummySEC"
